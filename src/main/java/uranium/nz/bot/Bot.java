@@ -1,0 +1,69 @@
+package uranium.nz.bot;
+
+import com.sun.source.util.SourcePositions;
+import io.github.cdimascio.dotenv.Dotenv;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
+
+public class Bot {
+
+    public static JDA jda;
+    public static Dotenv dotenv;
+
+    public static Guild guild;
+
+    public static void init() {
+        dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
+        String token = dotenv.get("DISCORD_TOKEN");
+
+        if (token == null || !token.startsWith("M")) {
+            System.out.println("No token found in .env file");
+            dotenv = Dotenv.configure().directory("./").filename(".env.test").ignoreIfMissing().load();
+            token = dotenv.get("DISCORD_TOKEN");
+        }
+        if (token == null || !token.startsWith("M")) {
+            throw new IllegalStateException("No DISCORD_TOKEN found in .env (classpath) or .env.test (local).");
+        }
+        System.out.println("Starting bot...");
+        try {
+            build(token);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Bot started successfully!");
+
+        guild = jda.getGuildById("1423544904574828668");
+
+
+        if (guild != null) {
+            guild.updateCommands()
+                 .addCommands(
+                     Commands.slash("whitelist", "WL managing"))
+                 .queue();
+            System.out.println("Commands updated for guild" + guild.getName());
+        } else {
+            System.out.println("Guild not found");
+        }
+    }
+    public static void stop() {
+        System.out.println("Shutting down...");
+        if (jda != null) {
+            jda.shutdown();
+            jda.shutdownNow();
+            System.out.println("Shut down successfully, bye!");
+        }
+    }
+    public static void build(String token) throws InterruptedException {
+        jda = JDABuilder.createDefault(token)
+                .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
+                .disableCache(CacheFlag.ACTIVITY)
+                .addEventListeners(new Command())
+                .setToken(token)
+                .build().awaitReady();
+    }
+}
