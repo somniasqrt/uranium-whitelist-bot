@@ -5,7 +5,9 @@ import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import uranium.nz.bot.ui.UI;
@@ -45,7 +47,10 @@ public class Bot {
         if (guild != null) {
             guild.updateCommands()
                  .addCommands(
-                     Commands.slash("whitelist", "WL managing"))
+                     Commands.slash("whitelist", "Керування вайтлистом"),
+                     Commands.slash("wl", "Дії з вайтлистом")
+                         .addSubcommands(new SubcommandData("add", "Додати користувача до вайтлисту")
+                             .addOption(OptionType.STRING, "username", "Ігровий нік користувача", true)))
                  .queue();
             System.out.println("Commands updated for guild" + guild.getName());
         } else {

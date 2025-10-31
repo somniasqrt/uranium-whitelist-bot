@@ -11,7 +11,7 @@ public class UIMessages {
 
     public static MessageCreateData root() {
         return new MessageCreateBuilder()
-                .setContent("🧩 **Whitelist Manager**")
+                .setContent("🧩 **Менеджер Вайтлисту**")
                 .setComponents(
                         ActionRow.of(
                                 Button.secondary("wl:add", "➕"),
@@ -29,23 +29,23 @@ public class UIMessages {
                 .build();
     }
     public static MessageCreateData addUser() {
-        return createUserSelectMenu("Select a user to add to the whitelist");
+        return createUserSelectMenu("Виберіть користувача, щоб додати до вайтлисту");
     }
     public static MessageCreateData removeUser() {
-        return createUserSelectMenu("Select a user to remove from the whitelist");
+        return createUserSelectMenu("Виберіть користувача, щоб видалити з вайтлисту");
     }
     public static MessageCreateData findUser() {
-        return createUserSelectMenu("Select a user to find in the whitelist");
+        return createUserSelectMenu("Виберіть користувача, щоб знайти у вайтлисті");
     }
     public static MessageCreateData changeUser() {
-        return createUserSelectMenu("Select a user to change in the whitelist");
+        return createUserSelectMenu("Виберіть користувача, щоб змінити у вайтлисті");
     }
 
     public static MessageCreateData showAddUserOptions(Member member, boolean isExistingUser) {
-        String content = String.format("Ви вибрали %s., якщо все вірно то можете продовжувати", member.getAsMention());
+        String content = String.format("Ви вибрали %s. Якщо все вірно, можете продовжувати.", member.getAsMention());
         Button actionButton = isExistingUser
-                ? Button.success("wl:add_twin", "➕ Add Twin")
-                : Button.success("wl:add_main", "➕ Add Main ");
+                ? Button.success("wl:add_twin", "➕ Додати твінк")
+                : Button.success("wl:add_main", "➕ Додати основу");
 
         return new MessageCreateBuilder()
                 .setContent(content)
@@ -58,9 +58,29 @@ public class UIMessages {
                 ).build();
     }
 
+    public static MessageCreateData promptForMainUsername(Member member) {
+        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/wl add <ігровий_нік>` для завершення.", member.getAsMention());
+        return new MessageCreateBuilder()
+                .setContent(content)
+                .setComponents(ActionRow.of(
+                        Button.primary("wl:prev", "⬅️"),
+                        Button.danger("wl:close", "❌")))
+                .build();
+    }
+
+    public static MessageCreateData promptForTwinUsername(Member member) {
+        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/wl add <ігровий_нік>` для завершення.", member.getAsMention());
+        return new MessageCreateBuilder()
+                .setContent(content)
+                .setComponents(ActionRow.of(
+                        Button.primary("wl:prev", "⬅️"),
+                        Button.danger("wl:close", "❌")))
+                .build();
+    }
+
     private static MessageCreateData createUserSelectMenu(String placeholder) {
         return new MessageCreateBuilder()
-            .setContent("🧩 **Whitelist Manager**")
+            .setContent("🧩 **Менеджер Вайтлисту**")
             .setComponents(
                 ActionRow.of(
                     EntitySelectMenu.create("wl:user", EntitySelectMenu.SelectTarget.USER)
