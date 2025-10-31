@@ -8,6 +8,8 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import uranium.nz.bot.ui.UI;
+import uranium.nz.bot.ui.UIListener;
 
 public class Bot {
 
@@ -49,6 +51,8 @@ public class Bot {
         } else {
             System.out.println("Guild not found");
         }
+
+        UI.UIMemory.start(jda);
     }
     public static void stop() {
         System.out.println("Shutting down...");
@@ -62,8 +66,9 @@ public class Bot {
         jda = JDABuilder.createDefault(token)
                 .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
                 .disableCache(CacheFlag.ACTIVITY)
-                .addEventListeners(new Command())
+                .addEventListeners(new UIListener())
                 .setToken(token)
                 .build().awaitReady();
     }
+
 }
