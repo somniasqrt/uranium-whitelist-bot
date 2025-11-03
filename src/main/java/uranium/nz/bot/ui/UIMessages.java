@@ -58,8 +58,31 @@ public class UIMessages {
                 ).build();
     }
 
+    public static MessageCreateData showRemoveUserOptions(Member member, boolean hasMain, boolean hasTwins) {
+        String content = String.format("Ви вибрали %s для видалення. Що саме ви хочете видалити?", member.getAsMention());
+        
+        ActionRow buttonRow;
+        if (hasMain && hasTwins) {
+            buttonRow = ActionRow.of(
+                    Button.danger("wl:remove_main", "➕ Видалити основу"),
+                    Button.danger("wl:remove_twin", "➕ Видалити твінк")
+            );
+        } else if (hasMain) {
+            buttonRow = ActionRow.of(Button.danger("wl:remove_main", "Видалити основу"));
+        } else if (hasTwins) {
+            buttonRow = ActionRow.of(Button.danger("wl:remove_twin", "Видалити твінк"));
+        } else {
+            content = String.format("Для користувача %s не знайдено записів у вайтлисті.", member.getAsMention());
+            buttonRow = ActionRow.of(Button.primary("wl:prev", "⬅️").asDisabled()); // No action to take
+        }
+
+        return new MessageCreateBuilder()
+                .setContent(content)
+                .setComponents(buttonRow, ActionRow.of(Button.primary("wl:prev", "⬅️"), Button.danger("wl:close", "❌"))).build();
+    }
+
     public static MessageCreateData promptForMainUsername(Member member) {
-        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/wl add <ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(
@@ -69,7 +92,7 @@ public class UIMessages {
     }
 
     public static MessageCreateData promptForTwinUsername(Member member) {
-        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/wl add <ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(

@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import uranium.nz.bot.database.DatabaseManager;
 import uranium.nz.bot.ui.UI;
 import uranium.nz.bot.ui.UIListener;
 
@@ -41,18 +42,19 @@ public class Bot {
 
         System.out.println("Bot started successfully!");
 
+        DatabaseManager.init();
+
         guild = jda.getGuildById("1423544904574828668");
 
 
         if (guild != null) {
             guild.updateCommands()
                  .addCommands(
-                     Commands.slash("whitelist", "Керування вайтлистом"),
-                     Commands.slash("wl", "Дії з вайтлистом")
-                         .addSubcommands(new SubcommandData("add", "Додати користувача до вайтлисту")
-                             .addOption(OptionType.STRING, "username", "Ігровий нік користувача", true)))
-                 .queue();
-            System.out.println("Commands updated for guild" + guild.getName());
+                         Commands.slash("whitelist", "Керування вайтлистом")
+                                 .addOption(OptionType.STRING, "add", "Додати користувача до вайтлисту за ніком", false))
+                    .queue();
+
+            System.out.println("Commands updated for guild " + guild.getName());
         } else {
             System.out.println("Guild not found");
         }
@@ -62,6 +64,7 @@ public class Bot {
     public static void stop() {
         System.out.println("Shutting down...");
         if (jda != null) {
+            DatabaseManager.close();
             jda.shutdown();
             jda.shutdownNow();
             System.out.println("Shut down successfully, bye!");
