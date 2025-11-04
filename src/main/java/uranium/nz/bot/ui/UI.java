@@ -1,90 +1,59 @@
 package uranium.nz.bot.ui;
 
-import net.dv8tion.jda.api.JDA;
+import lombok.Getter;
+import lombok.Setter;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.concurrent.*;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class UI {
 
+    @Getter
     public static class Session {
         private final long userId;
         private final long channelId;
+        @Setter
         private long messageId;
-        private long lastAccessed;
+        private UIStates currentState;
+        private UIStates previousState;
+        @Setter
         private Member selectedMember;
-        private final Deque<UIStates> history = new ArrayDeque<>();
+        private long lastInteraction;
 
         public Session(long userId, long channelId, long messageId, UIStates initialState) {
             this.userId = userId;
             this.channelId = channelId;
             this.messageId = messageId;
-            this.lastAccessed = System.currentTimeMillis();
-            this.history.push(initialState);
+            this.currentState = initialState;
+            this.previousState = initialState;
+            touch();
         }
-
-        public UIStates getCurrentState() {return history.peek();}
 
         public void changeState(UIStates newState) {
-            this.history.push(newState);
+            this.previousState = this.currentState;
+            this.currentState = newState;
             touch();
-        }
-
-        public UIStates getPreviousState() {
-            if (history.size() > 1) {
-                history.pop();
-            }
-            touch();
-            return history.peek();
         }
 
         public void touch() {
-            this.lastAccessed = System.currentTimeMillis();
+            this.lastInteraction = System.currentTimeMillis();
         }
-
-        public boolean isExpired(long timeoutMillis) {
-            return (System.currentTimeMillis() - lastAccessed) > timeoutMillis;
-        }
-
-        public long getUserId() { return userId; }
-        public long getChannelId() { return channelId; }
-        public long getMessageId() { return messageId; }
-        public void setMessageId(long messageId) { this.messageId = messageId; }
-        public Member getSelectedMember() { return selectedMember; }
-        public void setSelectedMember(Member selectedMember) { this.selectedMember = selectedMember; }
     }
 
     public static class UIMemory {
+        private static final Map<Long, Session> sessions = new ConcurrentHashMap<>();
 
-
-        private static final ConcurrentMap<Long, Session> sessions = new ConcurrentHashMap<>();
-        private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        private static final long SESSION_TIMEOUT = TimeUnit.MINUTES.toMillis(5);
-
-        public static void start(JDA jda) {
-            scheduler.scheduleAtFixedRate(() -> cleanup(jda), 1, 1, TimeUnit.MINUTES);
-            System.out.println("UI memory started");
+        public static Session getSession(long userId) {
+            return sessions.get(userId);
         }
 
-        public static void stop() {scheduler.shutdown();}
-        public static void putSession(long userId, Session session) {sessions.put(userId, session);}
-        public static Session getSession(long userId) {return sessions.get(userId);}
-        public static void removeSession(long userId) {sessions.remove(userId);}
+        public static void putSession(long userId, Session session) {
+            sessions.put(userId, session);
+        }
 
-        private static void cleanup(JDA jda) {
-            sessions.entrySet().removeIf(entry -> {
-                if (entry.getValue().isExpired(SESSION_TIMEOUT)) {
-                    MessageChannel channel = jda.getChannelById(MessageChannel.class, entry.getValue().getChannelId());
-                    if (channel != null) {
-                        channel.deleteMessageById(entry.getValue().getMessageId()).queue(null, (e) -> System.out.println("Failed to delete expired UI message"));
-                    }
-                    return true;
-                }
-                return false;
-            });
+        public static void removeSession(long userId) {
+            sessions.remove(userId);
         }
     }
 }

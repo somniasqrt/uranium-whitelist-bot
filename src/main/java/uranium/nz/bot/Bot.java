@@ -58,8 +58,6 @@ public class Bot {
         } else {
             System.out.println("Guild not found");
         }
-
-        UI.UIMemory.start(jda);
     }
     public static void stop() {
         System.out.println("Shutting down...");

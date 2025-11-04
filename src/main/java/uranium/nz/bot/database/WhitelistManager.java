@@ -94,6 +94,6 @@ public class WhitelistManager {
     }
 
     public static boolean isUserWhitelisted(long discordId) {
-        return hasMain(discordId)
+        return hasMain(discordId) || hasTwin(discordId);
     }
 }
