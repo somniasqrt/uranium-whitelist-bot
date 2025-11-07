@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import org.jetbrains.annotations.NotNull;
 import uranium.nz.bot.database.WhitelistManager;
 
 public class UIMessages {
@@ -45,11 +46,8 @@ public class UIMessages {
     public static MessageCreateData showAddUserOptions(Member member) {
         boolean hasMain = WhitelistManager.hasMain(member.getIdLong());
         boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
-
         String content = String.format("Ви вибрали %s. ", member.getAsMention());
-
         MessageCreateBuilder message = new MessageCreateBuilder();
-
         if (!hasMain) {
             content += "Цей користувач ще не має основного акаунту.";
             message.addComponents(ActionRow.of(Button.success("wl:add_main", "➕ Додати основу")));

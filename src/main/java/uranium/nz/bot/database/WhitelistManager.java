@@ -1,5 +1,7 @@
 package uranium.nz.bot.database;
 
+import uranium.nz.bot.ui.UI;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
