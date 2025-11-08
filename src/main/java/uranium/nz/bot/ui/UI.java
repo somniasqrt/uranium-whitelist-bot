@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import net.dv8tion.jda.api.entities.Member;
 
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,8 +17,7 @@ public class UI {
         private final long channelId;
         @Setter
         private long messageId;
-        private UIStates currentState;
-        private UIStates previousState;
+        private final Deque<UIStates> history = new LinkedList<>();
         @Setter
         private Member selectedMember;
         private long lastInteraction;
@@ -25,14 +26,25 @@ public class UI {
             this.userId = userId;
             this.channelId = channelId;
             this.messageId = messageId;
-            this.currentState = initialState;
-            this.previousState = initialState;
+            this.history.push(initialState);
             touch();
         }
 
+        public UIStates getCurrentState() {
+            return history.peek();
+        }
+
         public void changeState(UIStates newState) {
-            this.previousState = this.currentState;
-            this.currentState = newState;
+            if (history.isEmpty() || history.peek() != newState) {
+                history.push(newState);
+            }
+            touch();
+        }
+
+        public void goBack() {
+            if (history.size() > 1) {
+                history.pop();
+            }
             touch();
         }
 

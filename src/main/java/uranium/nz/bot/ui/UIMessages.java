@@ -6,7 +6,6 @@ import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
-import org.jetbrains.annotations.NotNull;
 import uranium.nz.bot.database.WhitelistManager;
 
 public class UIMessages {
@@ -46,8 +45,11 @@ public class UIMessages {
     public static MessageCreateData showAddUserOptions(Member member) {
         boolean hasMain = WhitelistManager.hasMain(member.getIdLong());
         boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
+
         String content = String.format("Ви вибрали %s. ", member.getAsMention());
+
         MessageCreateBuilder message = new MessageCreateBuilder();
+
         if (!hasMain) {
             content += "Цей користувач ще не має основного акаунту.";
             message.addComponents(ActionRow.of(Button.success("wl:add_main", "➕ Додати основу")));
@@ -60,27 +62,29 @@ public class UIMessages {
 
         return message.setContent(content)
                 .addComponents(ActionRow.of(
-                        Button.secondary("wl:prev", "⬅️"),
-                        Button.secondary("wl:close", "❌"))
+                        Button.primary("wl:prev", "⬅️"),
+                        Button.danger("wl:close", "❌"))
                 ).build();
     }
 
     public static MessageCreateData promptForMainUsername(Member member) {
-        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add:<ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(
-                        Button.secondary("wl:prev", "⬅️"),
-                        Button.secondary("wl:close", "❌"))).build();
+                        Button.primary("wl:prev", "⬅️"),
+                        Button.danger("wl:close", "❌")))
+                .build();
     }
 
     public static MessageCreateData promptForTwinUsername(Member member) {
-        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/wl add <ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(
-                        Button.secondary("wl:prev", "⬅️"),
-                        Button.secondary("wl:close", "❌"))).build();
+                        Button.primary("wl:prev", "⬅️"),
+                        Button.danger("wl:close", "❌")))
+                .build();
     }
 
     private static MessageCreateData createUserSelectMenu(String placeholder) {
@@ -93,8 +97,8 @@ public class UIMessages {
                         .build()
                 ),
                 ActionRow.of(
-                    Button.secondary("wl:prev", "⬅️"),
-                    Button.secondary("wl:close", "❌")
+                    Button.primary("wl:prev", "⬅️"),
+                    Button.danger("wl:close", "❌")
                 )
             ).build();
     }
