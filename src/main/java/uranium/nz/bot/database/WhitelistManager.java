@@ -1,7 +1,5 @@
 package uranium.nz.bot.database;
 
-import uranium.nz.bot.ui.UI;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,12 +8,11 @@ import java.sql.SQLException;
 public class WhitelistManager {
 
     public static boolean addMain(long discordId, String username) {
-        String sql = "INSERT INTO whitelist (discord_id, minecraft_name) VALUES (?, ?) ON CONFLICT (discord_id) DO UPDATE SET minecraft_name = ?";
+        String sql = "INSERT INTO whitelist (discord_id, minecraft_name) VALUES (?, ?) ON CONFLICT (discord_id) DO UPDATE SET minecraft_name = EXCLUDED.minecraft_name";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, discordId);
             pstmt.setString(2, username);
-            pstmt.setString(3, username);
             int affectedRows = pstmt.executeUpdate();
             return affectedRows > 0;
         } catch (SQLException e) {
@@ -97,5 +94,20 @@ public class WhitelistManager {
 
     public static boolean isUserWhitelisted(long discordId) {
         return hasMain(discordId) || hasTwin(discordId);
+    }
+
+    public static boolean isUsernameTaken(String username) {
+        String sql = "SELECT 1 FROM whitelist WHERE minecraft_name = ? OR twin_name = ? LIMIT 1";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            pstmt.setString(2, username);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking if username is taken: " + e.getMessage());
+            return true;
+        }
     }
 }

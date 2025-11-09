@@ -130,6 +130,46 @@ public class DatabaseManager {
         return Optional.empty();
     }
 
+    public static Optional<WhitelistedUser> findUserByQuery(String query) {
+        // Attempt to parse as a long for Discord ID
+        try {
+            long discordId = Long.parseLong(query.replaceAll("[^0-9]", "")); // Sanitize for mentions like <@12345>
+            Optional<WhitelistedUser> user = getWhitelistedUser(discordId);
+            if (user.isPresent()) {
+                return user;
+            }
+        } catch (NumberFormatException ignored) {
+            // Not a numeric ID, proceed to check names
+        }
+
+        // Check minecraft_name and twin_name
+        String sql = "SELECT * FROM whitelist WHERE minecraft_name = ? OR twin_name = ? LIMIT 1";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, query);
+            stmt.setString(2, query);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(new WhitelistedUser(
+                            rs.getInt("id"),
+                            rs.getLong("discord_id"),
+                            rs.getString("minecraft_name"),
+                            rs.getString("twin_name"),
+                            rs.getTimestamp("added_at"),
+                            rs.getBoolean("on_server"),
+                            rs.getBoolean("paid"),
+                            rs.getTimestamp("expires_on")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error during user search by query: " + query);
+            e.printStackTrace();
+        }
+
+        // If we reach here, no user was found
+        return Optional.empty();
+    }
+
     public static Connection getConnection() throws SQLException {
         return dataSource.getConnection();
     }

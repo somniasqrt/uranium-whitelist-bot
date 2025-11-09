@@ -1,5 +1,6 @@
 package uranium.nz.bot.ui;
 
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -7,10 +8,14 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.jetbrains.annotations.NotNull;
+import uranium.nz.bot.Bot;
 import uranium.nz.bot.database.WhitelistManager;
+import uranium.nz.bot.database.WhitelistedUser;
+import uranium.nz.bot.database.DatabaseManager;
 
 public class UIListener extends ListenerAdapter {
 
@@ -19,14 +24,21 @@ public class UIListener extends ListenerAdapter {
         if (!event.getName().equals("whitelist")) return;
 
         OptionMapping addOption = event.getOption("add");
-        if (addOption != null) {
+        OptionMapping findOption = event.getOption("find");
+        OptionMapping removeOption = event.getOption("remove");
+
+        if (removeOption != null) {
+            handleWhitelistRemoveCommand(event, removeOption);
+        } else if (findOption != null) {
+            handleWhitelistFindCommand(event, findOption);
+        } else if (addOption != null) {
             handleWhitelistAddCommand(event, addOption);
         } else {
-            handleWhitelistCommand(event);
+            handleWhitelistPanelCommand(event);
         }
     }
 
-    private void handleWhitelistCommand(SlashCommandInteractionEvent event) {
+    private void handleWhitelistPanelCommand(SlashCommandInteractionEvent event) {
         UI.Session session = UI.UIMemory.getSession(event.getUser().getIdLong());
         if (session != null) {
             event.reply("У вас вже є активна сесія.").setEphemeral(true).queue();
@@ -42,6 +54,43 @@ public class UIListener extends ListenerAdapter {
         });
     }
 
+    private void handleWhitelistRemoveCommand(SlashCommandInteractionEvent event, OptionMapping queryOption) {
+        String query = queryOption.getAsString();
+        event.deferReply(true).queue();
+
+        var userData = DatabaseManager.findUserByQuery(query);
+
+        if (userData.isEmpty()) {
+            event.getHook().sendMessage("❌ Користувач за запитом `" + query + "` не знайдений у вайтлисті.").queue();
+            return;
+        }
+
+        WhitelistedUser user = userData.get();
+        boolean removed = WhitelistManager.removeMain(user.discordId());
+
+        String finalMessage = removed ? String.format("✅ Користувача з ID `%d` було успішно видалено.", user.discordId())
+                : String.format("❌ Не вдалося видалити користувача з ID `%d`.", user.discordId());
+        event.getHook().sendMessage(finalMessage).queue();
+    }
+
+    private void handleWhitelistFindCommand(SlashCommandInteractionEvent event, OptionMapping queryOption) {
+        String query = queryOption.getAsString();
+        event.deferReply(true).queue();
+
+        var userData = DatabaseManager.findUserByQuery(query);
+
+        if (userData.isEmpty()) {
+            event.getHook().sendMessage("❌ Користувач за запитом `" + query + "` не знайдений.").setEphemeral(true).queue();
+            return;
+        }
+
+        WhitelistedUser user = userData.get();
+        Bot.getJda().retrieveUserById(user.discordId()).queue(
+                discordUser -> event.getHook().sendMessage(UIMessages.showFindUserResult(discordUser, userData, false)).setEphemeral(true).queue(),
+                error -> event.getHook().sendMessage("⚠️ Користувач з ID `" + user.discordId() + "` не знайдений на сервері, але є у вайтлисті.").setEphemeral(true).queue()
+        );
+    }
+
     private void handleWhitelistAddCommand(SlashCommandInteractionEvent event, OptionMapping usernameOption) {
         UI.Session session = UI.UIMemory.getSession(event.getUser().getIdLong());
         if (session == null) {
@@ -51,11 +100,16 @@ public class UIListener extends ListenerAdapter {
 
         UIStates currentState = session.getCurrentState();
         if (currentState != UIStates.AWAITING_MAIN_USERNAME && currentState != UIStates.AWAITING_TWIN_USERNAME) {
-            event.reply("UI зараз не в режимі додавання користувача, закрийте це вікно та спробуйте ще раз.").setEphemeral(true).queue();
+            event.reply("UI зараз не в режимі додавання користувача. Будь ласка, спочатку виберіть дію в панелі.").setEphemeral(true).queue();
             return;
         }
 
         String username = usernameOption.getAsString();
+        if (WhitelistManager.isUsernameTaken(username)) {
+            event.reply(String.format("❌ Нік `%s` вже зайнятий.", username)).setEphemeral(true).queue();
+            return;
+        }
+
         Member targetMember = session.getSelectedMember();
 
         boolean success;
@@ -70,14 +124,9 @@ public class UIListener extends ListenerAdapter {
                     : "Твінк акаунт вже існує або основний аккаунт не був вказаний.";
         }
 
-        event.reply(replyMessage).setEphemeral(true).queue();
-
-        if (success) {
-            session.changeState(UIStates.ROOT);
-            event.getChannel().retrieveMessageById(session.getMessageId()).queue(message -> {
-                message.editMessage(MessageEditData.fromCreateData(UIMessages.root())).queue();
-            });
-        }
+        session.goBack();
+        String finalMessage = success ? "✅ " + replyMessage : "❌ " + replyMessage;
+        event.reply(finalMessage).setEphemeral(true).queue();
     }
 
     @Override
@@ -102,8 +151,9 @@ public class UIListener extends ListenerAdapter {
                 e.editMessage(MessageEditData.fromCreateData(getMessageForState(session.getCurrentState(), session.getSelectedMember()))).queue();
             }
             case "wl:close" -> {
+                // Properly acknowledge the interaction before deleting the message.
                 UI.UIMemory.removeSession(e.getUser().getIdLong());
-                e.getMessage().delete().queue();
+                e.editMessage("Панель закрито.").setComponents().queue(v -> e.getHook().deleteOriginal().queueAfter(2, java.util.concurrent.TimeUnit.SECONDS));
             }
             case "wl:remove" -> {
                 session.changeState(UIStates.REMOVE_USER);
@@ -124,6 +174,21 @@ public class UIListener extends ListenerAdapter {
             case "wl:add_twin" -> {
                 session.changeState(UIStates.AWAITING_TWIN_USERNAME);
                 e.editMessage(MessageEditData.fromCreateData(UIMessages.promptForTwinUsername(session.getSelectedMember()))).queue();
+            }
+            case "wl:remove_main" -> {
+                Member memberToRemove = session.getSelectedMember();
+                boolean removed = WhitelistManager.removeMain(memberToRemove.getIdLong());
+                String reply = removed ? String.format("Користувача %s було повність видалено.", memberToRemove.getAsMention())
+                        : String.format("Не вдалося видалити дані для %s.", memberToRemove.getAsMention());
+                session.goBack();
+                e.editMessage(MessageEditData.fromCreateData(UIMessages.showSuccessAndGoBack(reply, "wl:prev", "wl:close"))).queue();
+            }
+            case "wl:remove_twin" -> {
+                Member memberToRemove = session.getSelectedMember();
+                boolean removed = WhitelistManager.removeTwin(memberToRemove.getIdLong());
+                String reply = removed ? String.format("Твінк акаунт для %s було видалено.", memberToRemove.getAsMention())
+                        : String.format("Не вдалося видалити твінк акаунт для %s.", memberToRemove.getAsMention());
+                e.editMessage(MessageEditData.fromCreateData(UIMessages.showSuccessAndGoBack(reply, "wl:prev", "wl:close"))).queue();
             }
         }
     }
@@ -147,8 +212,15 @@ public class UIListener extends ListenerAdapter {
             session.setSelectedMember(selectedMember);
             session.changeState(UIStates.AWAITING_ADD_TYPE);
             e.editMessage(MessageEditData.fromCreateData(UIMessages.showAddUserOptions(selectedMember))).queue();
-        } else {
-            e.reply("Ця дія ще не реалізована.").setEphemeral(true).queue();
+        } else if (currentState == UIStates.REMOVE_USER) {
+            session.setSelectedMember(selectedMember);
+            session.changeState(UIStates.AWAITING_REMOVE_TYPE);
+            e.editMessage(MessageEditData.fromCreateData(UIMessages.showRemoveUserOptions(selectedMember))).queue();
+        } else if (currentState == UIStates.FIND_USER) {
+            session.setSelectedMember(selectedMember);
+            session.changeState(UIStates.SHOWING_FIND_RESULT);
+            var userData = DatabaseManager.getWhitelistedUser(selectedMember.getIdLong());
+            e.editMessage(MessageEditData.fromCreateData(UIMessages.showFindUserResult(selectedMember.getUser(), userData))).queue();
         }
     }
 
@@ -162,6 +234,8 @@ public class UIListener extends ListenerAdapter {
             case AWAITING_ADD_TYPE -> UIMessages.showAddUserOptions(member);
             case AWAITING_MAIN_USERNAME -> UIMessages.promptForMainUsername(member);
             case AWAITING_TWIN_USERNAME -> UIMessages.promptForTwinUsername(member);
+            case AWAITING_REMOVE_TYPE -> UIMessages.showRemoveUserOptions(member);
+            case SHOWING_FIND_RESULT -> UIMessages.findUser(); // Go back to user selection
             default -> UIMessages.root();
         };
     }

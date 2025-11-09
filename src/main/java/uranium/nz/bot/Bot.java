@@ -1,21 +1,20 @@
 package uranium.nz.bot;
 
-import com.sun.source.util.SourcePositions;
 import io.github.cdimascio.dotenv.Dotenv;
+import lombok.Getter;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import uranium.nz.bot.database.DatabaseManager;
-import uranium.nz.bot.ui.UI;
 import uranium.nz.bot.ui.UIListener;
 
 public class Bot {
 
+    @Getter
     public static JDA jda;
     public static Dotenv dotenv;
 
@@ -51,7 +50,9 @@ public class Bot {
             guild.updateCommands()
                  .addCommands(
                          Commands.slash("whitelist", "Керування вайтлистом")
-                                 .addOption(OptionType.STRING, "add", "Додати користувача до вайтлисту за ніком", false))
+                                 .addOption(OptionType.STRING, "add", "Додати користувача до вайтлисту за ніком", false)
+                                 .addOption(OptionType.STRING, "find", "Знайти користувача у вайтлисті за ніком", false)
+                                 .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false))
                     .queue();
 
             System.out.println("Commands updated for guild " + guild.getName());
