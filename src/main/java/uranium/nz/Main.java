@@ -5,7 +5,7 @@ import uranium.nz.bot.Bot;
 import java.util.TimeZone;
 
 public class Main {
-    public static void main(String[] args) {
+     static void main(String[] args) {
         TimeZone.setDefault(TimeZone.getTimeZone("Europe/Kyiv"));
         Bot.init();
         Runtime.getRuntime().addShutdownHook(new Thread(Bot::stop));

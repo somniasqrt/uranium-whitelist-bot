@@ -38,6 +38,34 @@ public class WhitelistManager {
         }
     }
 
+    public static boolean updateMainName(long discordId, String newUsername) {
+        String sql = "UPDATE whitelist SET minecraft_name = ? WHERE discord_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newUsername);
+            pstmt.setLong(2, discordId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating main name: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static boolean updateTwinName(long discordId, String newUsername) {
+        String sql = "UPDATE whitelist SET twin_name = ? WHERE discord_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newUsername);
+            pstmt.setLong(2, discordId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating twin name: " + e.getMessage());
+            return false;
+        }
+    }
+
     public static boolean removeMain(long discordId) {
         String deleteSql = "DELETE FROM whitelist WHERE discord_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
@@ -108,6 +136,20 @@ public class WhitelistManager {
         } catch (SQLException e) {
             System.err.println("Error checking if username is taken: " + e.getMessage());
             return true;
+        }
+    }
+
+    public static boolean setOnServerStatus(long discordId, boolean onServer) {
+        String sql = "UPDATE whitelist SET on_server = ? WHERE discord_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setBoolean(1, onServer);
+            pstmt.setLong(2, discordId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating on_server status: " + e.getMessage());
+            return false;
         }
     }
 }

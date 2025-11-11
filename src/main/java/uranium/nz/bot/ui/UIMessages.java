@@ -40,13 +40,13 @@ public class UIMessages {
     public static MessageCreateData removeUser() {
         String placeholder = "Виберіть користувача для видалення...";
         String content = "Виберіть користувача зі списку, щоб видалити його.\n\n" +
-                         "Якщо користувача немає на сервері, використайте команду `/whitelist remove <ID>`, щоб видалити його за Discord ID.";
+                         "Якщо користувача немає на сервері, використайте команду `/whitelist remove <name_or_id>`, щоб видалити його за Discord ID або за майкнрафт нікнеймом.";
         return createUserSelectMenu(placeholder, content);
     }
     public static MessageCreateData findUser() {
         String placeholder = "Виберіть користувача зі списку...";
         String content = "Виберіть користувача зі списку нижче.\n\n" +
-                         "Якщо користувача немає на сервері, використайте команду `/whitelist find <query>`, де `query` - це Discord ID або ігровий нік.";
+                         "Якщо користувача немає на сервері, використайте команду `/whitelist find <name_or_id>`, де `name_or_id` - це Discord ID або ігровий нік.";
         return createUserSelectMenu(placeholder, content);
     }
     public static MessageCreateData changeUser() {
@@ -63,18 +63,36 @@ public class UIMessages {
 
         if (!hasMain) {
             content += "Цей користувач ще не має основного акаунту.";
-            message.addComponents(ActionRow.of(Button.secondary("wl:add_main", "➕ Додати основу")));
+            message.addComponents(ActionRow.of(Button.secondary("wl:add_main", "➕ Додати основний аккаунт")));
         } else if (!hasTwin) {
             content += "Цей користувач вже має основний акаунт, але ще не має твінка.";
             message.addComponents(ActionRow.of(Button.secondary("wl:add_twin", "➕ Додати твінк")));
         } else {
-            content += "Цей користувач вже має основний акаунт і твінк. Ви не можете додати більше.";
+            content += "Цей користувач вже має основний акаунт і твінк";
         }
 
         return message.setContent(content)
                 .addComponents(ActionRow.of(
                         Button.secondary("wl:prev", "⬅️"),
                         Button.secondary("wl:close", "❌"))
+                ).build();
+    }
+
+    public static MessageCreateData showChangeUserOptions(Member member) {
+        boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
+
+        String content = String.format("Ви вибрали %s. Що ви хочете змінити?", member.getAsMention());
+
+        Button changeMain = Button.secondary("wl:change_main", "✏️Змінити основний нік");
+        Button changeTwin = Button.secondary("wl:change_twin", "✏️Змінити нік твінка").withDisabled(!hasTwin);
+
+        return new MessageCreateBuilder()
+                .setContent(content)
+                .setComponents(
+                        ActionRow.of(changeMain, changeTwin),
+                        ActionRow.of(
+                                Button.secondary("wl:prev", "⬅️"),
+                                Button.secondary("wl:close", "❌"))
                 ).build();
     }
 
@@ -106,7 +124,18 @@ public class UIMessages {
     }
 
     public static MessageCreateData promptForMainUsername(Member member) {
-        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте основний акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist name <nickname>` для завершення.", member.getAsMention());
+        return new MessageCreateBuilder()
+                .setContent(content)
+                .setComponents(ActionRow.of(
+                        Button.secondary("wl:prev", "⬅️"),
+                        Button.secondary("wl:close", "❌")))
+                .build();
+    }
+
+    public static MessageCreateData promptForNewUsername(Member member, String changeType) {
+        String item = "main".equals(changeType) ? "основного" : "твінк";
+        String content = String.format("Введіть новий нік для %s акаунту користувача %s.\n\nБудь ласка, використовуйте команду `/whitelist name <nickname>` для завершення.", item, member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(
@@ -116,27 +145,12 @@ public class UIMessages {
     }
 
     public static MessageCreateData promptForTwinUsername(Member member) {
-        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist add <ігровий_нік>` для завершення.", member.getAsMention());
+        String content = String.format("Ви додаєте твінк акаунт для %s.\n\nБудь ласка, використовуйте команду `/whitelist name <nickname>` для завершення.", member.getAsMention());
         return new MessageCreateBuilder()
                 .setContent(content)
                 .setComponents(ActionRow.of(
                         Button.secondary("wl:prev", "⬅️"),
                         Button.secondary("wl:close", "❌")))
-                .build();
-    }
-
-    public static MessageCreateData promptForRemovalConfirmation(Member member, String removalType) {
-        String item = "main".equals(removalType) ? "всі дані для" : "твінк акаунт";
-        String content = String.format("⚠️ **Ви впевнені?**\n\nВи збираєтеся видалити %s користувача %s. Цю дію неможливо скасувати.", item, member.getAsMention());
-
-        Button confirmButton = Button.danger("wl:confirm_remove", "Так, видалити");
-        Button cancelButton = Button.secondary("wl:cancel_remove", "Ні, скасувати");
-
-        return new MessageCreateBuilder()
-                .setContent(content)
-                .setComponents(
-                        ActionRow.of(confirmButton, cancelButton)
-                )
                 .build();
     }
 
@@ -163,7 +177,7 @@ public class UIMessages {
         if (userData.isPresent()) {
             WhitelistedUser whitelistedUser = userData.get();
             embed.setColor(0x4CAF50); // Green
-            embed.setDescription("Інформація про користувача " + user.getAsMention());
+            embed.setDescription("Користувач " + user.getAsMention());
             embed.addField("Основний нік", "`" + whitelistedUser.minecraftName() + "`", true);
             embed.addField("Твінк нік", whitelistedUser.twinName() != null ? "`" + whitelistedUser.twinName() + "`" : "_Немає_", true);
             embed.addField("Додано", whitelistedUser.addedAt().toInstant().atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), false);

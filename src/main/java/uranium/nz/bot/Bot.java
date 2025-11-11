@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import uranium.nz.bot.database.DatabaseManager;
+import uranium.nz.bot.listeners.JoinLeaveListener;
 import uranium.nz.bot.ui.UIListener;
 
 public class Bot {
@@ -50,7 +51,7 @@ public class Bot {
             guild.updateCommands()
                  .addCommands(
                          Commands.slash("whitelist", "Керування вайтлистом")
-                                 .addOption(OptionType.STRING, "add", "Додати користувача до вайтлисту за ніком", false)
+                                 .addOption(OptionType.STRING, "name", "Ігровий нік для додавання або зміни", false)
                                  .addOption(OptionType.STRING, "find", "Знайти користувача у вайтлисті за ніком", false)
                                  .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false))
                     .queue();
@@ -73,7 +74,7 @@ public class Bot {
         jda = JDABuilder.createDefault(token)
                 .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
                 .disableCache(CacheFlag.ACTIVITY)
-                .addEventListeners(new UIListener())
+                .addEventListeners(new UIListener(), new JoinLeaveListener())
                 .setToken(token)
                 .build().awaitReady();
     }
