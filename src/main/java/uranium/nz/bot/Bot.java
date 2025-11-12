@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import uranium.nz.bot.database.DatabaseManager;
 import uranium.nz.bot.listeners.JoinLeaveListener;
+import uranium.nz.bot.listeners.RoleManageListener;
 import uranium.nz.bot.ui.UIListener;
 
 public class Bot {
@@ -24,6 +25,8 @@ public class Bot {
     public static void init() {
         dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
         String token = dotenv.get("DISCORD_TOKEN");
+        String guildId = dotenv.get("GUILD_ID");
+        String whitelistRoleId = dotenv.get("WHITELIST_ROLE");
 
         if (token == null || !token.startsWith("M")) {
             System.out.println("No token found in .env file");
@@ -35,7 +38,7 @@ public class Bot {
         }
         System.out.println("Starting bot...");
         try {
-            build(token);
+            build(token, whitelistRoleId);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -44,7 +47,7 @@ public class Bot {
 
         DatabaseManager.init();
 
-        guild = jda.getGuildById("1423544904574828668");
+        guild = jda.getGuildById(guildId);
 
 
         if (guild != null) {
@@ -70,11 +73,11 @@ public class Bot {
             System.out.println("Shut down successfully, bye!");
         }
     }
-    public static void build(String token) throws InterruptedException {
+    public static void build(String token, String whitelistRoleId) throws InterruptedException {
         jda = JDABuilder.createDefault(token)
                 .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
                 .disableCache(CacheFlag.ACTIVITY)
-                .addEventListeners(new UIListener(), new JoinLeaveListener())
+                .addEventListeners(new UIListener(), new JoinLeaveListener(), new RoleManageListener(Long.parseLong(whitelistRoleId)))
                 .setToken(token)
                 .build().awaitReady();
     }
