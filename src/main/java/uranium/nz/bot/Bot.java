@@ -10,23 +10,27 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import uranium.nz.bot.database.DatabaseManager;
+import uranium.nz.bot.database.WhitelistManager;
 import uranium.nz.bot.listeners.JoinLeaveListener;
-import uranium.nz.bot.listeners.RoleManageListener;
 import uranium.nz.bot.ui.UIListener;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Bot {
 
     @Getter
     public static JDA jda;
-    public static Dotenv dotenv;
 
     public static Guild guild;
+    public static WhitelistManager whitelistManager;
+    public static ExecutorService executor = Executors.newCachedThreadPool();
 
     public static void init() {
-        dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
+        Dotenv dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
         String token = dotenv.get("DISCORD_TOKEN");
         String guildId = dotenv.get("GUILD_ID");
-        String whitelistRoleId = dotenv.get("WHITELIST_ROLE");
+        String whitelistRoleIdStr = dotenv.get("WHITELIST_ROLE");
 
         if (token == null || !token.startsWith("M")) {
             System.out.println("No token found in .env file");
@@ -36,9 +40,15 @@ public class Bot {
         if (token == null || !token.startsWith("M")) {
             throw new IllegalStateException("No DISCORD_TOKEN found in .env (classpath) or .env.test (local).");
         }
+        if (whitelistRoleIdStr == null || whitelistRoleIdStr.trim().isEmpty()) {
+            throw new IllegalStateException("WHITELIST_ROLE is not defined in the .env file.");
+        }
+        long whitelistRoleId = Long.parseLong(whitelistRoleIdStr);
+
         System.out.println("Starting bot...");
+        whitelistManager = new WhitelistManager(whitelistRoleId);
         try {
-            build(token, whitelistRoleId);
+            build(token, whitelistManager);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -56,7 +66,12 @@ public class Bot {
                          Commands.slash("whitelist", "Керування вайтлистом")
                                  .addOption(OptionType.STRING, "name", "Ігровий нік для додавання або зміни", false)
                                  .addOption(OptionType.STRING, "find", "Знайти користувача у вайтлисті за ніком", false)
-                                 .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false))
+                                 .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false),
+                         Commands.slash("ban", "Забанити користувача")
+                                 .addOption(OptionType.STRING, "name_or_id", "Ігровий нік або Discord ID", true)
+                                 .addOption(OptionType.STRING, "reason", "Причина бану", false)
+                                 .addOption(OptionType.STRING, "time", "Тривалість бану (наприклад, 30d, 12h, 1y)", false)
+                 )
                     .queue();
 
             System.out.println("Commands updated for guild " + guild.getName());
@@ -67,17 +82,18 @@ public class Bot {
     public static void stop() {
         System.out.println("Shutting down...");
         if (jda != null) {
+            executor.shutdown();
             DatabaseManager.close();
             jda.shutdown();
             jda.shutdownNow();
             System.out.println("Shut down successfully, bye!");
         }
     }
-    public static void build(String token, String whitelistRoleId) throws InterruptedException {
+    public static void build(String token, WhitelistManager whitelistManager) throws InterruptedException {
         jda = JDABuilder.createDefault(token)
                 .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
                 .disableCache(CacheFlag.ACTIVITY)
-                .addEventListeners(new UIListener(), new JoinLeaveListener(), new RoleManageListener(Long.parseLong(whitelistRoleId)))
+                .addEventListeners(new UIListener(whitelistManager), new JoinLeaveListener(whitelistManager))
                 .setToken(token)
                 .build().awaitReady();
     }

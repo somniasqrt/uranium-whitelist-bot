@@ -60,7 +60,7 @@ public class DatabaseManager {
     }
 
     private static void initSchema() {
-        String sql = """
+        String whitelistSql = """
             CREATE TABLE IF NOT EXISTS whitelist (
                 id SERIAL PRIMARY KEY,
                 discord_id BIGINT NOT NULL UNIQUE, -- The user's Discord ID, one entry per user
@@ -73,12 +73,37 @@ public class DatabaseManager {
             );
         """;
 
+        String bannedSql = """
+            CREATE TABLE IF NOT EXISTS banned (
+                id SERIAL PRIMARY KEY,
+                discord_id BIGINT NOT NULL UNIQUE,
+                minecraft_name VARCHAR(100) NOT NULL,
+                twin_name VARCHAR(100),
+                reason TEXT,
+                banned_until TIMESTAMP WITH TIME ZONE
+            );
+        """;
+
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute(sql);
+            stmt.execute(whitelistSql);
+            stmt.execute(bannedSql);
             System.out.println("Database schema initialized or already exists.");
         } catch (SQLException e) {
             System.err.println("Failed to initialize database schema!");
             e.printStackTrace();
+        }
+    }
+
+    public static boolean isUserBanned(long discordId) {
+        String sql = "SELECT 1 FROM banned WHERE discord_id = ? LIMIT 1";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, discordId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

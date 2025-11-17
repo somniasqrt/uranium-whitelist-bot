@@ -1,19 +1,28 @@
 package uranium.nz.bot.ui;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import uranium.nz.bot.database.DatabaseManager;
 import uranium.nz.bot.database.WhitelistManager;
 import uranium.nz.bot.database.WhitelistedUser;
 
+import java.awt.Color;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
+
 public class UIMessages {
+
+    private final WhitelistManager whitelistManager;
+
+    public UIMessages(WhitelistManager whitelistManager) {
+        this.whitelistManager = whitelistManager;
+    }
 
     public static MessageCreateData root() {
         return new MessageCreateBuilder()
@@ -34,28 +43,32 @@ public class UIMessages {
                 )
                 .build();
     }
+
     public static MessageCreateData addUser() {
         return createUserSelectMenu("Виберіть користувача, щоб додати до вайтлисту");
     }
+
     public static MessageCreateData removeUser() {
         String placeholder = "Виберіть користувача для видалення...";
         String content = "Виберіть користувача зі списку, щоб видалити його.\n\n" +
                          "Якщо користувача немає на сервері, використайте команду `/whitelist remove <name_or_id>`, щоб видалити його за Discord ID або за майкнрафт нікнеймом.";
         return createUserSelectMenu(placeholder, content);
     }
+
     public static MessageCreateData findUser() {
         String placeholder = "Виберіть користувача зі списку...";
         String content = "Виберіть користувача зі списку нижче.\n\n" +
                          "Якщо користувача немає на сервері, використайте команду `/whitelist find <name_or_id>`, де `name_or_id` - це Discord ID або ігровий нік.";
         return createUserSelectMenu(placeholder, content);
     }
+
     public static MessageCreateData changeUser() {
         return createUserSelectMenu("Виберіть користувача, щоб змінити у вайтлисті");
     }
 
-    public static MessageCreateData showAddUserOptions(Member member) {
-        boolean hasMain = WhitelistManager.hasMain(member.getIdLong());
-        boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
+    public MessageCreateData showAddUserOptions(Member member) {
+        boolean hasMain = whitelistManager.hasMain(member.getIdLong());
+        boolean hasTwin = whitelistManager.hasTwin(member.getIdLong());
 
         String content = String.format("Ви вибрали %s. ", member.getAsMention());
 
@@ -78,8 +91,8 @@ public class UIMessages {
                 ).build();
     }
 
-    public static MessageCreateData showChangeUserOptions(Member member) {
-        boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
+    public MessageCreateData showChangeUserOptions(Member member) {
+        boolean hasTwin = whitelistManager.hasTwin(member.getIdLong());
 
         String content = String.format("Ви вибрали %s. Що ви хочете змінити?", member.getAsMention());
 
@@ -96,13 +109,13 @@ public class UIMessages {
                 ).build();
     }
 
-    public static MessageCreateData showRemoveUserOptions(Member member) {
+    public MessageCreateData showRemoveUserOptions(Member member) {
         return showRemoveUserOptions(member, null);
     }
 
-    public static MessageCreateData showRemoveUserOptions(Member member, String statusMessage) {
-        boolean hasMain = WhitelistManager.hasMain(member.getIdLong());
-        boolean hasTwin = WhitelistManager.hasTwin(member.getIdLong());
+    public MessageCreateData showRemoveUserOptions(Member member, String statusMessage) {
+        boolean hasMain = whitelistManager.hasMain(member.getIdLong());
+        boolean hasTwin = whitelistManager.hasTwin(member.getIdLong());
 
         String content = String.format("Ви вибрали %s. Що ви хочете видалити?", member.getAsMention());
 
@@ -156,7 +169,7 @@ public class UIMessages {
 
     public static MessageCreateData showSuccessAndGoBack(String message, String backButtonId, String closeButtonId) {
         return new MessageCreateBuilder()
-                .setContent(message) 
+                .setContent(message)
                 .setComponents(
                         ActionRow.of(
                                 Button.secondary(backButtonId, "⬅️"),
@@ -195,6 +208,39 @@ public class UIMessages {
             ));
         }
         return builder.build();
+    }
+
+    public static MessageCreateData showBanConfirmation(WhitelistedUser user, String reason, String time, String banId) {
+        boolean isAlreadyBanned = DatabaseManager.isUserBanned(user.discordId());
+        EmbedBuilder embed = new EmbedBuilder()
+                .setTitle("🚨 Підтвердження блокування")
+                .setDescription(isAlreadyBanned ? "⚠️ **Цей користувач вже заблокований. Існуючий бан буде перезаписано.**" : "Ви впевнені що хочете заблокувати цього користувача?")
+                .addField("User", "<@" + user.discordId() + ">", false)
+                .addField("Minecraft Name", user.minecraftName(), true)
+                .addField("Reason", reason, true)
+                .addField("Duration", time != null ? time : "Permanent", true)
+                .setColor(Color.RED);
+
+        return new MessageCreateBuilder()
+                .setEmbeds(embed.build())
+                .addComponents(
+                        ActionRow.of(
+                                Button.danger("ban:confirm:" + banId, "ЗАБЛОКУВАТИ")
+                        )
+                )
+                .build();
+    }
+
+    public static MessageCreateData showBanSuccess(WhitelistedUser user, String reason, String time) {
+        EmbedBuilder embed = new EmbedBuilder()
+                .setTitle("✅ Користувача заблоковано")
+                .setDescription("Користувач <@" + user.discordId() + "> був успішно заблокований.")
+                .addField("Minecraft Name", user.minecraftName(), true)
+                .addField("Reason", reason, true)
+                .addField("Duration", time != null ? time : "Permanent", true)
+                .setColor(Color.GREEN);
+
+        return new MessageCreateBuilder().setEmbeds(embed.build()).build();
     }
 
     private static MessageCreateData createUserSelectMenu(String placeholder) {

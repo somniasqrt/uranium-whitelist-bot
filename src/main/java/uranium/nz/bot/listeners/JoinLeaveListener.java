@@ -9,12 +9,18 @@ import uranium.nz.bot.database.WhitelistManager;
 
 public class JoinLeaveListener extends ListenerAdapter {
 
+    private final WhitelistManager whitelistManager;
+
+    public JoinLeaveListener(WhitelistManager whitelistManager) {
+        this.whitelistManager = whitelistManager;
+    }
+
     @Override
     public void onGuildMemberRemove(@NotNull GuildMemberRemoveEvent event) {
         User user = event.getUser();
         long userId = user.getIdLong();
-        if (WhitelistManager.isUserWhitelisted(userId)) {
-            WhitelistManager.setOnServerStatus(userId, false);
+        if (whitelistManager.isUserWhitelisted(userId)) {
+            whitelistManager.setOnServerStatus(userId, false);
             System.out.printf("Whitelisted user %s (%d) left the server. on_server false.%n", user.getAsTag(), userId);
         }
     }
@@ -22,9 +28,8 @@ public class JoinLeaveListener extends ListenerAdapter {
     public void onGuildMemberJoin(@NotNull GuildMemberJoinEvent event) {
         User user = event.getUser();
         long userId = user.getIdLong();
-
-        if (WhitelistManager.isUserWhitelisted(userId)) {
-            WhitelistManager.setOnServerStatus(userId, true);
+        if (whitelistManager.isUserWhitelisted(userId)) {
+            whitelistManager.setOnServerStatus(userId, true);
             System.out.printf("Whitelisted user %s (%d) joined the server. on_server true.%n", user.getAsTag(), userId);
         }
     }
