@@ -6,7 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TimeUtil {
-    private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)([mhdwy])");
+    private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)([smhdwy])");
 
     public static Instant parseBanDuration(String durationStr) {
         if (durationStr == null || durationStr.isBlank()) {
@@ -23,6 +23,8 @@ public class TimeUtil {
 
         Instant now = Instant.now();
         switch (unitChar) {
+            case 's':
+                return now.plus(amount, ChronoUnit.SECONDS);
             case 'm':
                 return now.plus(amount, ChronoUnit.MINUTES);
             case 'h':
