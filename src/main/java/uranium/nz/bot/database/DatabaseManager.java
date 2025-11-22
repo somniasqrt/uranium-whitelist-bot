@@ -2,7 +2,7 @@ package uranium.nz.bot.database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import io.github.cdimascio.dotenv.Dotenv;
+import uranium.nz.bot.Config;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,27 +16,17 @@ public class DatabaseManager {
     private static HikariDataSource dataSource;
 
     public static void init() {
-        Dotenv dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
-        String host = dotenv.get("DB_HOST", "localhost");
-        String dbName = dotenv.get("DB_NAME");
-        String user = dotenv.get("DB_USER");
-        String password = dotenv.get("DB_PASSWORD");
+        String host = Config.get("DB_HOST", "localhost");
+        String dbName = Config.get("DB_NAME");
+        String user = Config.get("DB_USER");
+        String password = Config.get("DB_PASSWORD");
 
-        if (dbName == null || dbName.isBlank() || user == null || user.isBlank() || password == null || password.isBlank() || "localhost".equals(host)) {
-            System.out.println("Main .env has invalid DB config, trying .env.test");
-            dotenv = Dotenv.configure().directory("./").filename(".env.test").ignoreIfMissing().load();
-            host = dotenv.get("DB_HOST", "localhost");
-            dbName = dotenv.get("DB_NAME");
-            user = dotenv.get("DB_USER");
-            password = dotenv.get("DB_PASSWORD");
-        }
-
-        if (dbName == null || dbName.isBlank() || user == null || user.isBlank() || password == null || password.isBlank()) {
-            throw new IllegalStateException("Database configuration is missing or blank in both .env and .env.test (DB_NAME, DB_USER, DB_PASSWORD)");
+        if (dbName == null || dbName.equals("YOUR_DATABASE_NAME") || user == null || password == null) {
+            throw new IllegalStateException("Database configuration is missing or incomplete in the .env file (DB_NAME, DB_USER, DB_PASSWORD)");
         }
 
         HikariConfig config = new HikariConfig();
-        String port = dotenv.get("DB_PORT", "5432");
+        String port = Config.get("DB_PORT", "5432");
         config.setJdbcUrl(String.format("jdbc:postgresql://%s:%s/%s?sslmode=prefer", host, port, dbName));
         config.setUsername(user);
         config.setPassword(password);
@@ -77,8 +67,8 @@ public class DatabaseManager {
             CREATE TABLE IF NOT EXISTS banned (
                 id SERIAL PRIMARY KEY,
                 discord_id BIGINT NOT NULL UNIQUE,
-                minecraft_name VARCHAR(100) NOT NULL,
-                twin_name VARCHAR(100),
+                minecraft_name VARCHAR(100) NOT NULL UNIQUE,
+                twin_name VARCHAR(100) UNIQUE,
                 reason TEXT,
                 banned_until TIMESTAMP WITH TIME ZONE
             );

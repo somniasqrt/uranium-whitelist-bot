@@ -1,5 +1,6 @@
 package uranium.nz.bot.ui;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -37,6 +38,11 @@ public class UIListener extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        Member member = event.getMember();
+        if (member == null || !member.hasPermission(Permission.ADMINISTRATOR)) {
+            event.reply("У вас немає дозволу на використання цієї команди.").setEphemeral(true).queue();
+            return;
+        }
         // Deferral is handled in each specific method
         switch (event.getName()) {
             case "whitelist" -> handleWhitelistSlashCommand(event);

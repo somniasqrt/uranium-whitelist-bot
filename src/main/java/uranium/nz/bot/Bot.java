@@ -1,10 +1,11 @@
 package uranium.nz.bot;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import lombok.Getter;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -27,20 +28,17 @@ public class Bot {
     public static ExecutorService executor = Executors.newCachedThreadPool();
 
     public static void init() {
-        Dotenv dotenv = Dotenv.configure().directory("src/main/resources").ignoreIfMissing().load();
-        String token = dotenv.get("DISCORD_TOKEN");
-        String guildId = dotenv.get("GUILD_ID");
-        String whitelistRoleIdStr = dotenv.get("WHITELIST_ROLE");
+        String token = Config.get("DISCORD_TOKEN");
+        String guildId = Config.get("GUILD_ID");
+        String whitelistRoleIdStr = Config.get("WHITELIST_ROLE");
 
-        if (token == null || !token.startsWith("M")) {
-            System.out.println("No token found in .env file");
-            dotenv = Dotenv.configure().directory("./").filename(".env.test").ignoreIfMissing().load();
-            token = dotenv.get("DISCORD_TOKEN");
+        if (token == null || token.equals("YOUR_DISCORD_BOT_TOKEN_HERE")) {
+            throw new IllegalStateException("Please set your DISCORD_TOKEN in the .env file.");
         }
-        if (token == null || !token.startsWith("M")) {
-            throw new IllegalStateException("No DISCORD_TOKEN found in .env (classpath) or .env.test (local).");
+        if (guildId == null) {
+            throw new IllegalStateException("GUILD_ID is not defined in the .env file.");
         }
-        if (whitelistRoleIdStr == null || whitelistRoleIdStr.trim().isEmpty()) {
+        if (whitelistRoleIdStr == null) {
             throw new IllegalStateException("WHITELIST_ROLE is not defined in the .env file.");
         }
         long whitelistRoleId = Long.parseLong(whitelistRoleIdStr);
@@ -66,11 +64,13 @@ public class Bot {
                          Commands.slash("whitelist", "Керування вайтлистом")
                                  .addOption(OptionType.STRING, "name", "Ігровий нік для додавання або зміни", false)
                                  .addOption(OptionType.STRING, "find", "Знайти користувача у вайтлисті за ніком", false)
-                                 .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false),
+                                 .addOption(OptionType.STRING, "remove", "Видалити користувача з вайтлисту за ID", false)
+                                 .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR)),
                          Commands.slash("ban", "Забанити користувача")
                                  .addOption(OptionType.STRING, "name_or_id", "Ігровий нік або Discord ID", true)
                                  .addOption(OptionType.STRING, "reason", "Причина бану", false)
                                  .addOption(OptionType.STRING, "time", "Тривалість бану (наприклад, 30d, 12h, 1y)", false)
+                                 .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR))
                  )
                     .queue();
 
