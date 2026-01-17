@@ -1,5 +1,7 @@
 package uranium.nz.bot.database;
 
+import uranium.nz.bot.Bot;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -29,9 +31,31 @@ public class BanManager {
             } else {
                 pstmt.setNull(5, java.sql.Types.TIMESTAMP);
             }
-            return pstmt.executeUpdate() > 0;
+            boolean success = pstmt.executeUpdate() > 0;
+            if (success) {
+                Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Banned: %s %s %d%n", minecraftName, user.getName(), discordId));
+            }
+            return success;
         } catch (SQLException e) {
             System.err.println("Error banning user: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static boolean unbanUser(long discordId) {
+        String sql = "DELETE FROM banned WHERE discord_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, discordId);
+            boolean success = pstmt.executeUpdate() > 0;
+            if (success) {
+                Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Unbanned: %s %d%n", user.getName(), discordId));
+            }
+            return success;
+        } catch (SQLException e) {
+            System.err.println("Error unbanning user: " + e.getMessage());
             return false;
         }
     }

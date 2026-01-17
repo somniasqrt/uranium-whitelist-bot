@@ -53,13 +53,13 @@ public class DatabaseManager {
         String whitelistSql = """
             CREATE TABLE IF NOT EXISTS whitelist (
                 id SERIAL PRIMARY KEY,
-                discord_id BIGINT NOT NULL UNIQUE, -- The user's Discord ID, one entry per user
-                minecraft_name VARCHAR(100) NOT NULL UNIQUE, -- The user`s main in-game name
-                twin_name VARCHAR(100) UNIQUE, -- The user's optional twin name, can be null
-                added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- The time when user was added
-                on_server BOOLEAN NOT NULL DEFAULT true, -- Is the user currently in the Discord server?
-                paid BOOLEAN NOT NULL DEFAULT false, -- Paid(true) or trial(false)
-                expires_on TIMESTAMP WITH TIME ZONE -- Null if paid=true, otherwise the expiration date for a trial
+                discord_id BIGINT NOT NULL UNIQUE,
+                minecraft_name VARCHAR(100) NOT NULL UNIQUE,
+                twin_name VARCHAR(100) UNIQUE,
+                added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                on_server BOOLEAN NOT NULL DEFAULT true,
+                paid BOOLEAN NOT NULL DEFAULT false,
+                expires_on TIMESTAMP WITH TIME ZONE
             );
         """;
 
@@ -146,18 +146,15 @@ public class DatabaseManager {
     }
 
     public static Optional<WhitelistedUser> findUserByQuery(String query) {
-        // Attempt to parse as a long for Discord ID
         try {
-            long discordId = Long.parseLong(query.replaceAll("[^0-9]", "")); // Sanitize for mentions like <@12345>
+            long discordId = Long.parseLong(query.replaceAll("[^0-9]", ""));
             Optional<WhitelistedUser> user = getWhitelistedUser(discordId);
             if (user.isPresent()) {
                 return user;
             }
         } catch (NumberFormatException ignored) {
-            // Not a numeric ID, proceed to check names
         }
 
-        // Check minecraft_name and twin_name
         String sql = "SELECT * FROM whitelist WHERE minecraft_name = ? OR twin_name = ? LIMIT 1";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, query);
@@ -181,7 +178,6 @@ public class DatabaseManager {
             e.printStackTrace();
         }
 
-        // If we reach here, no user was found
         return Optional.empty();
     }
 

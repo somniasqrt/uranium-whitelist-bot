@@ -3,12 +3,14 @@ package uranium.nz.bot.database;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import uranium.nz.bot.Bot;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
 
 public class WhitelistManager {
 
@@ -26,7 +28,9 @@ public class WhitelistManager {
             pstmt.setString(2, username);
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows > 0) {
-                addRoleToUser(discordId, whitelistRoleId);
+                updateUserOnJoin(discordId);
+                Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Added main: %s %s %d%n", username, user.getName(), discordId));
             }
             return affectedRows > 0;
 
@@ -43,7 +47,10 @@ public class WhitelistManager {
             pstmt.setString(1, username);
             pstmt.setLong(2, discordId);
             int affectedRows = pstmt.executeUpdate();
-            if (affectedRows == 0) {
+            if (affectedRows > 0) {
+                Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Added twin: %s %s %d%n", username, user.getName(), discordId));
+            } else {
                 System.err.println("Error adding twin account: user with discordId " + discordId + " not found. Please add a main account first.");
             }
             return affectedRows > 0;
@@ -60,6 +67,9 @@ public class WhitelistManager {
             pstmt.setString(1, newUsername);
             pstmt.setLong(2, discordId);
             int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                updateUserOnJoin(discordId);
+            }
             return affectedRows > 0;
         } catch (SQLException e) {
             System.err.println("Error updating main name: " + e.getMessage());
@@ -82,6 +92,7 @@ public class WhitelistManager {
     }
 
     public boolean removeMain(long discordId) {
+        Optional<WhitelistedUser> userOpt = DatabaseManager.getWhitelistedUser(discordId);
         String deleteSql = "DELETE FROM whitelist WHERE discord_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(deleteSql)) {
@@ -89,6 +100,8 @@ public class WhitelistManager {
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows > 0) {
                 removeRoleFromUser(discordId, whitelistRoleId);
+                userOpt.ifPresent(whitelistedUser -> Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Removed main: %s %s %d%n", whitelistedUser.minecraftName(), user.getName(), discordId)));
             }
             return affectedRows > 0;
         } catch (SQLException e) {
@@ -98,11 +111,16 @@ public class WhitelistManager {
     }
 
     public boolean removeTwin(long discordId) {
+        Optional<WhitelistedUser> userOpt = DatabaseManager.getWhitelistedUser(discordId);
         String sql = "UPDATE whitelist SET twin_name = NULL WHERE discord_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, discordId);
             int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                userOpt.ifPresent(whitelistedUser -> Bot.getJda().retrieveUserById(discordId).queue(user ->
+                        System.out.printf("Removed twin: %s %s %d%n", whitelistedUser.twinName(), user.getName(), discordId)));
+            }
             return affectedRows > 0;
         } catch (SQLException e) {
             System.err.println("Error removing twin account: " + e.getMessage());
@@ -166,11 +184,8 @@ public class WhitelistManager {
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows > 0) {
                 if (onServer) {
-                    if (isUserWhitelisted(discordId)) {
-                        addRoleToUser(discordId, whitelistRoleId);
-                    }
+                    updateUserOnJoin(discordId);
                 } else {
-                    removeRoleFromUser(discordId, whitelistRoleId);
                 }
             }
             return affectedRows > 0;
@@ -180,23 +195,45 @@ public class WhitelistManager {
         }
     }
 
-    public void addRoleToUser(long discordId, long roleId) {
-        Guild guild = Bot.guild;
-        if (guild == null) return;
-        Role role = guild.getRoleById(roleId);
-        if (role == null) return;
-        Member member = guild.getMemberById(discordId);
-        if (member == null) return;
-        guild.addRoleToMember(member, role).queue();
+    public void updateUserOnJoin(long discordId) {
+        Optional<WhitelistedUser> userOpt = DatabaseManager.getWhitelistedUser(discordId);
+        userOpt.ifPresent(user -> {
+            Guild guild = Bot.guild;
+            if (guild == null) return;
+            guild.retrieveMemberById(discordId).queue(member -> {
+                try {
+                    member.modifyNickname(user.minecraftName()).queue();
+                } catch (Exception e) {
+                    System.err.println("Could not modify nickname for user " + discordId + ": " + e.getMessage());
+                }
+                Role role = guild.getRoleById(whitelistRoleId);
+                if (role != null) {
+                    guild.addRoleToMember(member, role).queue();
+                } else {
+                    System.err.println("Whitelist role not found!");
+                }
+            }, error -> System.err.println("Could not find member with ID " + discordId + " to update on join."));
+        });
     }
 
     public void removeRoleFromUser(long discordId, long roleId) {
         Guild guild = Bot.guild;
-        if (guild == null) return;
+        if (guild == null) {
+            System.err.println("Guild is null, cannot remove role.");
+            return;
+        }
         Role role = guild.getRoleById(roleId);
-        if (role == null) return;
-        Member member = guild.getMemberById(discordId);
-        if (member == null) return;
-        guild.removeRoleFromMember(member, role).queue();
+        if (role == null) {
+            System.err.println("Role with ID " + roleId + " not found, cannot remove role.");
+            return;
+        }
+
+        guild.retrieveMemberById(discordId).queue(member -> {
+            if (member.getRoles().contains(role)) {
+                guild.removeRoleFromMember(member, role).queue();
+            }
+        }, error -> {
+            System.err.printf("Could not find member with ID %d to remove role. They may have left the server.\n", discordId);
+        });
     }
 }

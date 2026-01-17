@@ -43,7 +43,6 @@ public class UIListener extends ListenerAdapter {
             event.reply("У вас немає дозволу на використання цієї команди.").setEphemeral(true).queue();
             return;
         }
-        // Deferral is handled in each specific method
         switch (event.getName()) {
             case "whitelist" -> handleWhitelistSlashCommand(event);
             case "ban" -> handleBanCommand(event);

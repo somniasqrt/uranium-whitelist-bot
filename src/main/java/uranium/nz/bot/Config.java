@@ -25,14 +25,12 @@ public class Config {
                 writer.write("DB_NAME=YOUR_DATABASE_NAME\n");
                 writer.write("DB_USER=YOUR_DATABASE_USERNAME\n");
                 writer.write("DB_PASSWORD=YOUR_DATABASE_PASSWORD\n");
-                System.out.println("Successfully created '.env'. Please fill in your credentials and restart the bot.");
+                System.out.println("Successfully created '.env'. Please fill it and restart the bot");
             } catch (IOException e) {
                 System.err.println("Error creating '.env' file: " + e.getMessage());
             }
-            // Exit the application so the user can fill the file
             System.exit(0);
         }
-        // Load .env if it exists
         dotenv = Dotenv.configure().load();
     }
 
